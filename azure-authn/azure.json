@@ -19,7 +19,7 @@
   },
   "servers": [
     {
-      "url": "/{mount_path}/{registered_plugin_name}"
+      "url": "http:///{vault_addr}"
     }
   ],
   "tags": [
