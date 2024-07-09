@@ -2,16 +2,16 @@
   "openapi": "3.0.2",
   "info": {
     "title": "Vault API",
-    "description": "Sample Pet Store Server based on the OpenAPI 3.0 specification.  You can find out more about\nSwagger at [http://swagger.io](http://swagger.io). In the third iteration of the pet store, we've switched to the design first approach!\nYou can now help us improve the API whether it's by making changes to the definition itself or to the code.\nThat way, with time, we can improve the API in general, and expose some of the new features in OAS3.\n\nSome useful links:\n- [The Pet Store repository](https://github.com/swagger-api/swagger-petstore)\n- [The source API definition for the Pet Store](https://github.com/swagger-api/swagger-petstore/blob/master/src/main/resources/openapi.yaml)",
+    "description": "The Vault HTTP API gives you full access to your Vault server. The Vault CLI uses the HTTP API to access Vault similar to all other consumers.",
     "termsOfService": "http://swagger.io/terms/",
     "contact": {
-      "email": "apiteam@swagger.io"
+      "email": "support@hashicorp.com"
     },
     "license": {
-      "name": "Apache 2.0",
-      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+      "name": "Business Source License",
+      "url": "https://mariadb.com/bsl11/"
     },
-    "version": "1.0.17"
+    "version": "1.17"
   },
   "externalDocs": {
     "description": "Find out more about Swagger",
@@ -19,82 +19,57 @@
   },
   "servers": [
     {
-      "url": "/{mount_path}/{registered_plugin_name}"
+      "url": "http://{vault_addr}/v1"
     }
   ],
   "tags": [
     {
-      "name": "pet",
-      "description": "Everything about your Pets",
+      "name": "secret",
+      "description": "Vault-native plugins for secret management",
       "externalDocs": {
-        "description": "Find out more",
-        "url": "http://swagger.io"
+        "description": "Native secrets plugins",
+        "url": "https://developer.hashicorp.com/vault/docs/secrets"
       }
     },
     {
-      "name": "store",
-      "description": "Access to Petstore orders",
+      "name": "authn",
+      "description": "Vault-native plugins for authentication",
       "externalDocs": {
-        "description": "Find out more about our store",
-        "url": "http://swagger.io"
+        "description": "Native authN plugins",
+        "url": "https://developer.hashicorp.com/vault/docs/auth"
       }
     },
     {
-      "name": "user",
-      "description": "Operations about user"
+      "name": "system",
+      "description": "Vault system operations"
+    },
+    {
+      "name": "ent",
+      "description": "Vault Enterprise functionality"
     }
   ],
   "paths": {
-    "/pet": {
-      "put": {
+    "/cubbyhole/{path}": {
+      "get": {
         "tags": [
-          "pet"
+          "secret"
         ],
-        "summary": "Update an existing pet",
-        "description": "Update an existing pet by Id",
-        "operationId": "updatePet",
-        "requestBody": {
-          "description": "Update an existent pet in the store",
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Pet"
-              }
-            },
-            "application/xml": {
-              "schema": {
-                "$ref": "#/components/schemas/Pet"
-              }
-            },
-            "application/x-www-form-urlencoded": {
-              "schema": {
-                "$ref": "#/components/schemas/Pet"
-              }
-            }
-          },
-          "required": true
-        },
+        "summary": "Get a secret",
+        "description": "Retrieve the secret stored at the specified path.",
+        "operationId": "readSecret",
         "responses": {
           "200": {
             "description": "Successful operation",
             "content": {
-              "application/xml": {
-                "schema": {
-                  "$ref": "#/components/schemas/Pet"
-                }
-              },
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Pet"
+                  "$ref": "#/components/schemas/CubbyholeSecret"
                 }
               }
             }
           },
-          "400": {
-            "description": "Invalid ID supplied"
-          },
           "404": {
-            "description": "Pet not found"
+            "description": "Path not found"
           },
           "405": {
             "description": "Validation exception"
@@ -933,6 +908,43 @@
   },
   "components": {
     "schemas": {
+      "CubbyholeSecret": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "auth": "integer",
+            "format": "int64",
+            "example": 10
+          },
+          "petId": {
+            "type": "integer",
+            "format": "int64",
+            "example": 198772
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32",
+            "example": 7
+          },
+          "shipDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "description": "Order Status",
+            "example": "approved",
+            "enum": [
+              "placed",
+              "approved",
+              "delivered"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        }
+      }
       "Order": {
         "type": "object",
         "properties": {
@@ -1104,12 +1116,14 @@
           "name",
           "photoUrls"
         ],
+        "description": "A database record containing pet details",
         "type": "object",
         "properties": {
           "id": {
             "type": "integer",
             "format": "int64",
-            "example": 10
+            "example": 10,
+            "description": "The database-assigned ID for the pet"
           },
           "name": {
             "type": "string",
