@@ -944,7 +944,7 @@
             "type": "boolean"
           }
         }
-      }
+      },
       "Order": {
         "type": "object",
         "properties": {

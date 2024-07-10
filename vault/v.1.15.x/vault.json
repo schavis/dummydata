@@ -1,13 +1,13 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Vault API",
+    "title": "Vault API (JSON)",
     "description": "The Vault HTTP API gives you full access to your Vault server. The Vault CLI\nuses the HTTP API to access Vault similar to all other consumers.",
     "license": {
       "name": "Business Source License",
       "url": "https://mariadb.com/bsl11"
     },
-    "version": "1.17.x"
+    "version": "1.15.x"
   },
   "externalDocs": {
     "description": "Vault on the HashiCorp cloud",
