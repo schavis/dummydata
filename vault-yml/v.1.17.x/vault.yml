@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Vault API
+  description: |-
+    The Vault HTTP API gives you full access to your Vault server. The Vault CLI
+    uses the HTTP API to access Vault similar to all other consumers.
+  license:
+    name: Business Source License
+    url: https://mariadb.com/bsl11
+  version: 1.17.x
+externalDocs:
+  description: Vault on the HashiCorp cloud
+  url: https://developer.hashicorp.com/hcp/docs/vault/what-is-hcp-vault
+servers:
+  - url: https://{vault_addr}/v1
+tags:
+  - name: secret
+    description: Vault-native secrets plugins
+    externalDocs:
+      description: Learn more
+      url: https://developer.hashicorp.com/vault/docs/secrets
+  - name: authN
+    description: Vault-native authN plugins
+    externalDocs:
+      description: Learn more
+      url: https://developer.hashicorp.com/vault/docs/auth
+  - name: enterprise
+    description: Vault Enterprise only
+  - name: restricted-root
+    description: Restricted endpoint, requires `root` access
+  - name: restricted-admin
+    description: Restricted endpoint, requires `root` or `admin` access
+paths:
+  /sys/audit/:
+    get:
+      tags:
+        - sys
+        - restricted-root
+      summary: List audit devices
+      description: >-
+        List the currently enabled audit devices
+      operationId: listEnabledAuditDevices
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  anyOf:
+                    - $ref: '#/components/schemas/AuditDeviceFile'
+                    - $ref: '#/components/schemas/AuditDeviceSocket'
+                    - $ref: '#/components/schemas/AuditDeviceSysLog'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/AuthZError'
+  /sys/audit/{device_path}:
+    delete:
+      tags:
+        - sys
+        - restricted-root
+      summary: Disable an audit device
+      description: >-
+        Disable the audit device at the given path.
+        **WARNING**: Once an audit device is disabled, you will no longer be
+        to HMAC values for comparison with entries in the audit logs. This is
+        true even if you re-enable the audit device at the same path, as a new
+        salt will be created for hashing.
+      operationId: disableAuditDevice
+      parameters:
+        - in: path
+          name: device_path
+          required: true
+          description: >-
+            Path and request URL for the audit device. Paths can be single word
+            names or nested paths.
+          schema:
+            type: string
+            example: "my-audit-devices/file1"
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptySuccess'
+    post:
+      tags:
+        - sys
+        - restricted-root
+      summary: Enable audit device
+      description: >-
+        Enable a new audit device.
+      operationId: enableAuditDevice
+      parameters:
+        - in: path
+          name: device_path
+          required: true
+          description: >-
+            Path and request URL for the audit device. Paths can be single word
+            names or nested paths.
+          schema:
+            type: string
+            example: "my-audit-devices/file1"
+      requestBody:
+        description: Configuration information for a new audit device
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AuditDeviceFileType'
+                - $ref: '#/components/schemas/AuditDeviceSocketType'
+                - $ref: '#/components/schemas/AuditDeviceSysLogType'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AuditDeviceFile'
+                  - $ref: '#/components/schemas/AuditDeviceSocket'
+                  - $ref: '#/components/schemas/AuditDeviceSysLog'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/AuthZError'
+components:
+  schemas:
+    AuditDeviceCommonOptions:
+      type: object
+      properties:
+        elide_list_responses:
+          type: boolean
+          default: false
+          description: >-
+            Indicates whether Vault should mitigate the risk of very long,
+            individual audit records by not writing the full response object
+            to the audit log.
+        fallback:
+          type: boolean
+          default: false
+          description: >-
+            Indicates whether the audit device is the fallback for filtering
+            purposes. **Vault only supports one fallback audit device at a time.**
+            [ENTERPRISE]
+        filter:
+          type: string
+          default: ""
+          description: >-
+            An optional string used to filter the audit entries logged by the
+            audit device.
+            [ENTERPRISE]
+        format:
+          type: string
+          default: json
+          description: >-
+            Output format for the audit log.
+          enum:
+            - json
+            - jsonx
+        hmac_accessor:
+          type: boolean
+          default: true
+          description: >-
+            Enables the hashing of token accessor.
+        log_raw:
+          type: boolean
+          default: false
+          description: >-
+            Enables logging of security sensitive information without hashing,
+            in the raw format.
+        prefix:
+          type: string
+          default: ""
+          description: >-
+            A customizable string prefix to write before the actual log line.
+    AuditDeviceFileOptions:
+      type: object
+      required:
+        - file_path
+      properties:
+        file_path:
+          type: string
+          example: "/var/log/vault_audit.log"
+          description: >-
+            The path to where the audit log will be written. If a file already
+            exists at the given path, the audit backend will append to it.
+            There are some special keywords:
+            - `stdout` writes the audit log to standard output
+            - `discard` discards output, instead of writing it to a device (useful in testing scenarios)
+        mode:
+          type: string
+          default: "0600"
+          description: >-
+            A string containing an octal number representing the bit pattern
+            for the file mode, similar to `chmod`. Set to "0000" to prevent
+            Vault from modifying the file mode.
+    AuditDeviceSysLogOptions:
+      type: object
+      properties:
+        facility:
+          type: string
+          default: "AUTH"
+          description: >-
+            The syslog facility to use.
+        tag:
+          type: string
+          default: "vault"
+          description: >-
+            The syslog tag to use.
+    AuditDeviceSocketOptions:
+      type: object
+      properties:
+        address:
+          type: string
+          default: ""
+          description: >-
+            The socket server address to use.
+          example:
+            - 127.0.0.1:9090
+            - /tmp/audit.sock
+        socket_type:
+          type: string
+          default: "tcp"
+          description: >-
+              The socket type to use, any type compatible with net.Dial is
+              acceptable. It's important to note if TCP is used and the
+              destination socket becomes unavailable Vault may become
+              unresponsive per Blocked Audit Devices.
+        write_timeout:
+          type: string
+          default: "2s"
+          description: >-
+            The (deadline) time in seconds to allow writes to be completed
+            over the socket. A zero value means that write attempts will
+            **not** time out.
+    AuditDeviceMetaData:
+      type: object
+      properties:
+        description:
+          type: string
+          description: >-
+            A human-friendly description of the audit device
+          example: "Local log file"
+        local:
+          type: boolean
+          default: false
+          description: >-
+             Applies exclusively to performance replication. Specifies if the
+             audit device is local within the cluster only. Local audit devices
+             are not replicated nor (if a secondary) removed by replication.
+             [ENTERPRISE]
+    AuditDeviceFileType:
+      allOf:
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - file
+              description: >-
+                Type of the audit device
+              example: file
+        - $ref: '#/components/schemas/AuditDeviceMetaData'
+        - type: object
+          properties:
+            options:
+              allOf:
+                - $ref: '#/components/schemas/AuditDeviceFileOptions'
+                - $ref: '#/components/schemas/AuditDeviceCommonOptions'
+    AuditDeviceSocketType:
+      allOf:
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - socket
+              description: >-
+                Type of the audit device
+              example: socket
+        - $ref: '#/components/schemas/AuditDeviceMetaData'
+        - type: object
+          properties:
+            options:
+              allOf:
+                - $ref: '#/components/schemas/AuditDeviceSocketOptions'
+                - $ref: '#/components/schemas/AuditDeviceCommonOptions'
+    AuditDeviceSysLogType:
+      allOf:
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - syslog
+              description: >-
+                Type of the audit device
+              example: syslog
+        - type: object
+          properties:
+            options:
+              allOf:
+                - $ref: '#/components/schemas/AuditDeviceSysLogOptions'
+                - $ref: '#/components/schemas/AuditDeviceCommonOptions'
+        - $ref: '#/components/schemas/AuditDeviceMetaData'
+    AuditDeviceFile:
+      type: object
+      properties:
+        file:
+          $ref: '#/components/schemas/AuditDeviceFileType'
+    AuditDeviceSocket:
+      type: object
+      properties:
+        socket:
+          $ref: '#/components/schemas/AuditDeviceSocketType'
+    AuditDeviceSysLog:
+      type: object
+      properties:
+        syslog:
+          $ref: '#/components/schemas/AuditDeviceSysLogType'
+  responses:
+    EmptySuccess:
+      description: OK
+    BadRequest:
+      description: Bad request.
+    AuthZError:
+      description: Authorization information is missing or invalid.
+    NotFound:
+      description: Requested object not found.
+    Unexpected:
+      description: Unexpected error.
+  examples:
+      EnableAuditDeviceFile:
+        summary: Example request to enable an audit file
+        value:
+          type: file
+          options:
+            file_path: /var/log/vault/log
+      
