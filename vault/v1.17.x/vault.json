@@ -912,7 +912,7 @@
         "type": "object",
         "properties": {
           "id": {
-            "auth": "integer",
+            "type": "integer",
             "format": "int64",
             "example": 10
           },
